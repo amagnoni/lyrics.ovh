@@ -1,78 +1,76 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>lyrics.ovh: Only the lyrics</title>
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, shrink-to-fit=no"
-    />
-    <link
-      href="https://fonts.googleapis.com/css?family=Bungee+Shade|Crimson+Text|Open+Sans:400,800"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="style.css" />
-    <script
-      src="https://cdn.usefathom.com/script.js"
-      data-site="EIJSUNWO"
-      defer
-    ></script>
-  </head>
-  <body>
-    <div class="container">
-      <div class="title">
-        <h1 class="title-name">
-          <a href="https://lyrics.ovh">lyrics.ovh</a>
-        </h1>
-        <h2 class="title-legend">Only the lyrics</h2>
-      </div>
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
+const geniusLyrics = require("genius-lyrics-api");
 
-      <div class="search">
-        <input
-          type="text"
-          name="song"
-          class="search-song"
-          autofocus="autofocus"
-          placeholder="Type the song you want the lyrics"
-          id="search-input"
-        />
-        <ul class="results" id="results"></ul>
-      </div>
+let appApi = express();
+let appFrontend = express();
+const portApi = 8080;
+const portFrontend = 8081;
 
-      <div class="lyrics" id="lyrics"></div>
-    </div>
+appApi.use(cors());
 
-    <div class="credits">
-      <a
-        target="_blank"
-        title="Access the lyrics when watching a YouTube video"
-        href="https://chrome.google.com/webstore/detail/lyricsovh/bgicajmcncjmjhlfmhpioopadfhoocbk"
-        id="dl-chrome-ext"
-        >Chrome extension</a
-      ><br /><br />
-      <a
-        target="_blank"
-        title="The code is open-source"
-        href="https://github.com/NTag/lyrics.ovh"
-        >Github</a
-      >
-      <a
-        target="_blank"
-        title="API documentation"
-        href="http://docs.lyricsovh.apiary.io/"
-        >API</a
-      >
-      <a target="_blank" title="Made by NTag" href="https://github.com/NTag"
-        >Made by NTag</a
-      >
-    </div>
+// Lyrics fetching function using genius-lyrics-api
+async function findLyrics(title, artist) {
+  const options = {
+    apiKey: process.env.GENIUS_API_KEY || "your_genius_api_key_here", // You'll need to get this from Genius
+    title: title,
+    artist: artist,
+    optimizeQuery: true
+  };
 
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"
-      integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
-      crossorigin="anonymous"
-    ></script>
-    <script src="search.js" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.5.16/clipboard.min.js"></script>
-  </body>
-</html>
+  try {
+    const lyrics = await geniusLyrics.getLyrics(options);
+    return lyrics;
+  } catch (error) {
+    // Fallback: try without artist optimization
+    try {
+      const fallbackOptions = {
+        apiKey: options.apiKey,
+        title: `${title} ${artist}`,
+        optimizeQuery: false
+      };
+      const lyrics = await geniusLyrics.getLyrics(fallbackOptions);
+      return lyrics;
+    } catch (fallbackError) {
+      throw new Error("No lyrics found");
+    }
+  }
+}
+
+appApi.get("/v1/:artist/:title", async function (req, res) {
+  if (!req.params.artist || !req.params.title) {
+    return res.status(400).send({ error: "Artist or title missing" });
+  }
+  
+  try {
+    const lyrics = await findLyrics(req.params.title, req.params.artist);
+    res.send({ lyrics: lyrics });
+  } catch (e) {
+    console.log("Lyrics error:", e.message);
+    res.status(404).send({ error: "No lyrics found" });
+  }
+});
+
+appApi.get("/suggest/:term", async function (req, res) {
+  try {
+    const response = await axios.get(
+      `http://api.deezer.com/search?limit=15&q=${encodeURIComponent(req.params.term)}`,
+      { timeout: 5000 }
+    );
+    res.send(response.data);
+  } catch (error) {
+    console.log("Suggestion error:", error.message);
+    res.status(500).send({ error: "Search suggestions unavailable" });
+  }
+});
+
+appFrontend.use(express.static("frontend"));
+
+appApi.listen(portApi, function () {
+  console.log("API listening on port " + portApi);
+});
+
+appFrontend.listen(portFrontend, function () {
+  console.log("Frontend listening on port " + portFrontend);
+});
