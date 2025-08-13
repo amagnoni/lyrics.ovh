@@ -2,8 +2,8 @@
 
 var searchInput = $('#search-input');
 var results = $('#results');
-var apiUrl = 'https://api.lyrics.ovh';
-// var apiUrl = 'http://localhost:8080';
+// var apiUrl = 'https://api.lyrics.ovh';
+var apiUrl = 'http://localhost:8080';
 var lyricsDiv = $('#lyrics');
 var timeoutSuggest;
 lyricsDiv.hide();
