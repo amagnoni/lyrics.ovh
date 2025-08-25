@@ -25,7 +25,6 @@ function suggestions() {
     removeResults();
     return;
   }
-  
   console.log("Search suggestions for", term);
   
   $.ajax({
@@ -69,7 +68,7 @@ function suggestions() {
       }
     },
     error: function(xhr, status, error) {
-      console.log("Search error:", error);
+      console.log("Search suggestions failed:", error);
       removeResults();
     }
   });
@@ -83,7 +82,7 @@ function songLyrics(song) {
   $.ajax({
     url: apiUrl + '/v1/' + encodeURIComponent(song.artist) + '/' + encodeURIComponent(song.title),
     method: 'GET',
-    timeout: 15000,
+    timeout: 20000, // Increased timeout for lyrics search
     success: function(data) {
       var html = '<h3 class="lyrics-title">' + song.display + '</h3>';
       html += '<div class="copy-lyrics" id="copy-lyrics" data-clipboard-target="#thelyrics">Copy the lyrics <span id="copy-ok"></span></div>';
@@ -91,16 +90,20 @@ function songLyrics(song) {
       lyricsDiv.html(html);
       lyricsDiv.slideDown();
       
+      // Initialize clipboard functionality
       var copyl = new ClipboardJS('#copy-lyrics');
       copyl.on('success', function(e) {
         e.clearSelection();
         $('#copy-ok').text(' - Done :-)');
+        setTimeout(function() {
+          $('#copy-ok').text('');
+        }, 3000);
       });
     },
     error: function(xhr, status, error) {
-      console.log("Lyrics error:", error);
+      console.log("Lyrics fetch failed:", error);
       var html = '<h3 class="lyrics-title">' + song.display + '</h3>';
-      html += '<div class="error">Sorry, lyrics not found for this song.</div>';
+      html += '<div class="error-message">Sorry, lyrics not found for this song. Please try another song.</div>';
       lyricsDiv.html(html);
       lyricsDiv.slideDown();
     }
